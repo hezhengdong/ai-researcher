@@ -610,6 +610,104 @@
     pipelineEl.style.display = 'none';
   }
 
+  // ── History replay ──
+  function replaySurvey(survey) {
+    // 清空流水线区域
+    for (const key in agentCards) {
+      agentCards[key].card.remove();
+      delete agentCards[key];
+    }
+    for (const key in writerCards) {
+      writerCards[key].card.remove();
+      delete writerCards[key];
+    }
+    writerOutline = [];
+    writersRowEl = null;
+    pipelineEl.innerHTML = '';
+    resultEl.innerHTML = '';
+    resultEl.style.display = 'none';
+    errorBox.innerHTML = '';
+
+    pipelineEl.style.display = 'flex';
+
+    // --- Searcher ---
+    const se = makeCard('Searcher', false);
+    setCardDone(se);
+    if (survey.papers && survey.papers.length) {
+      se.content.textContent = survey.papers.map((p, i) =>
+        `${i + 1}. ${p.title}  [${p.source_type}]  ${p.markdown ? p.markdown.length : 0} 字符`
+      ).join('\n');
+    } else {
+      se.content.textContent = '（无论文数据）';
+    }
+    agentCards['searcher'] = se;
+
+    // --- Outliner ---
+    const oe = makeCard('Outliner', false);
+    setCardDone(oe);
+    if (survey.sections && survey.sections.length) {
+      const titles = survey.sections.map(s => s.title);
+      showInputSummary(oe.inputSummary,
+        `<strong>收到 ${survey.papers.length} 篇论文:</strong> ${titles.map(t => escapeHtml(t)).join('、')}`
+      );
+      oe.content.textContent = survey.sections.map((s, i) =>
+        `${i + 1}. ${s.title} — ${s.theme}\n   论文: [${(s.paper_ids || []).join(', ')}]`
+      ).join('\n\n');
+    } else {
+      oe.content.textContent = '（无大纲数据）';
+    }
+    agentCards['outliner'] = oe;
+
+    // --- Writers ---
+    if (survey.sections && survey.chapters) {
+      const outline = survey.sections;
+      outline.sort((a, b) => a.sort_order - b.sort_order);
+      const chapters = survey.chapters;
+      chapters.sort((a, b) => a.sort_order - b.sort_order);
+
+      outline.forEach((sec, i) => {
+        const label = sec.title || `Writer ${i + 1}`;
+        const we = makeCard(label, true);
+        setCardDone(we);
+        if (sec.paper_ids && sec.paper_ids.length) {
+          showInputSummary(we.inputSummary,
+            `<strong>阅读论文:</strong> ${sec.paper_ids.join(', ')}`
+          );
+        }
+        if (i < chapters.length && chapters[i].content) {
+          we.content.textContent = chapters[i].content;
+        } else {
+          we.content.textContent = '（无章节内容）';
+        }
+        writerCards[i] = we;
+      });
+    }
+
+    // --- Synthesizer ---
+    const sye = makeCard('Synthesizer', false);
+    setCardDone(sye);
+    if (survey.sections) {
+      const chTitles = survey.sections.map(s => s.title);
+      showInputSummary(sye.inputSummary,
+        `<strong>收到 ${chTitles.length} 章:</strong> ${chTitles.map(t => escapeHtml(t)).join('、')}`
+      );
+    }
+    sye.content.textContent = survey.draft ? '综述全文已生成' : '（无草稿）';
+    agentCards['synthesizer'] = sye;
+
+    // --- Result ---
+    if (survey.draft) {
+      resultEl.innerHTML = renderMarkdown(survey.draft);
+      const dlBtn = document.createElement('a');
+      dlBtn.href = `/api/surveys/${survey.id}/pdf`;
+      dlBtn.className = 'dl-pdf-btn';
+      dlBtn.textContent = 'Download PDF';
+      resultEl.prepend(dlBtn);
+      resultEl.style.display = 'block';
+      resultEl.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
   // ── SSE handler ──
 
   function handleSSEEvent(evt) {
@@ -879,16 +977,7 @@
           item.classList.add('active');
           const resp = await fetch(`/api/surveys/${id}`);
           const survey = await resp.json();
-          if (survey.draft) {
-            resultEl.innerHTML = renderMarkdown(survey.draft);
-            const dlBtn = document.createElement('a');
-            dlBtn.href = `/api/surveys/${id}/pdf`;
-            dlBtn.className = 'dl-pdf-btn';
-            dlBtn.textContent = 'Download PDF';
-            resultEl.prepend(dlBtn);
-            resultEl.style.display = 'block';
-            resultEl.scrollIntoView({ behavior: 'smooth' });
-          }
+          replaySurvey(survey);
         });
       });
     } catch (e) {}
