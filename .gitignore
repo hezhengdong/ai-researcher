@@ -11,6 +11,7 @@ wheels/
 
 # custom
 .env
+.DS_Store
 .pytest_cache/
 .playwright-mcp/
 .claude/
