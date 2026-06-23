@@ -47,9 +47,9 @@ SEARCHER_PROMPT = """\
 
 def _make_llm():
     return ChatOpenAI(
-        model="deepseek-v4-flash",
-        base_url="https://api.deepseek.com",
-        api_key=os.environ["DEEPSEEK_API_KEY"],
+        model=os.environ.get("LLM_MODEL", "deepseek-v4-flash"),
+        base_url=os.environ.get("LLM_BASE_URL", "https://api.deepseek.com"),
+        api_key=os.environ["LLM_API_KEY"],
         streaming=True,
         reasoning_effort="high",
         extra_body={"thinking": {"type": "enabled"}},
