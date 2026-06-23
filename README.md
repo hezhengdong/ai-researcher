@@ -1,13 +1,13 @@
-AI Researcher
+# AI Researcher
 
-基于 LangGraph 多 Agent 流水线的科研文献综述生成器。（太原理工大学软件工程 2023 级大三下人工智能II方向课设）
+面向初学者的科研文献综述助手，基于 LangGraph 实现，多 Agent 架构。（太原理工大学软件工程 2023 级大三下人工智能II方向课设）
 
-相关文档
+## 相关文档
 
 - [research-notes.md](https://github.com/hezhengdong/ai-researcher/blob/main/research-notes.md) — 程序作者人工撰写的过程记录与思考
 - [CLAUDE.md](https://github.com/hezhengdong/ai-researcher/blob/main/CLAUDE.md) — AI 为本项目撰写的技术文档
 
-**如何启动？**
+## 如何启动
 
 1. 科学上网（Tavily API 需要）
 
