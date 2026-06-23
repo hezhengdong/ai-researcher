@@ -1,74 +1,15 @@
-"""Tools for Searcher agent: web search, page extraction, PDF download and parse."""
+"""PDF download and Docling parse."""
 
-import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.request import urlretrieve
 
-from tavily import TavilyClient
+from tools import _report
 
 DOWNLOAD_DIR = Path("/tmp/searcher_papers")
 
-# 全局进度回调，供 SSE 流式推送使用
-_progress_reporter = None
-
-
-def set_progress_reporter(fn):
-    global _progress_reporter
-    _progress_reporter = fn
-
-
-def _report(event_type: str, **kwargs):
-    if _progress_reporter:
-        try:
-            _progress_reporter({"type": event_type, **kwargs})
-        except Exception:
-            pass
-
-
-def tavily_search(query: str, max_results: int = 5) -> str:
-    """Search the web for a reading list of classic papers on a topic."""
-    _report("tool_start", tool="tavily_search", query=query)
-    client = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
-    response = client.search(query, max_results=max_results, search_depth="advanced")
-    results = response.get("results", [])
-    if not results:
-        print(f"      [Tavily] 无结果: {query}", flush=True)
-        _report("tool_result", tool="tavily_search", summary=f"无结果")
-        return "No results found."
-    print(f"      [Tavily] {query}", flush=True)
-    summaries = []
-    for r in results:
-        line = f"{r['title'][:80]}  {r['url'][:60]}"
-        print(f"        → {line}", flush=True)
-        summaries.append(line)
-    _report("tool_result", tool="tavily_search", summary=f"{len(results)} 条结果", items=summaries)
-    return "\n\n".join(
-        f"Title: {r['title']}\nURL: {r['url']}\nContent: {r.get('content', '')}"
-        for r in results
-    )
-
-
-def tavily_extract(url: str) -> str:
-    """Extract the full content of a web page given its URL. Use this to read reading list pages."""
-    _report("tool_start", tool="tavily_extract", url=url[:80])
-    client = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
-    response = client.extract(urls=url)
-    results = response.get("results", [])
-    if results:
-        content = results[0].get("raw_content", "")
-        print(f"      [Tavily Extract] {url[:60]} → {len(content)} 字符", flush=True)
-        _report("tool_result", tool="tavily_extract", summary=f"{len(content)} 字符")
-        return content
-    failed = response.get("failed_results", [])
-    error = failed[0].get("error", "unknown") if failed else "no results"
-    print(f"      [Tavily Extract] 失败: {url[:60]} ({error})", flush=True)
-    _report("tool_result", tool="tavily_extract", summary=f"失败: {error}")
-    return f"Failed to extract {url}: {error}"
-
 
 def _download_single(url: str, idx: int) -> tuple[int, str | None]:
-    """下载单个 PDF 到本地，返回 (idx, path_or_None)。"""
     import socket
     try:
         path = DOWNLOAD_DIR / f"paper_{idx:02d}.pdf"

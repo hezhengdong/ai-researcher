@@ -1,11 +1,9 @@
 """Synthesizer agent: merges chapters into a complete survey draft."""
 
-import os
-
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from state import State
+from agents.shared import make_llm
+from agents.state import State
 
 SYNTHESIZER_PROMPT = """\
 你是一个学术文献综述的汇总编辑，强制使用中文输出所有内容。你将收到多篇独立的章节正文，需要将其整合为一篇完整的综述。
@@ -42,23 +40,13 @@ RETRY_PROMPT = """\
 {draft}"""
 
 
-def _make_llm():
-    return ChatOpenAI(
-        model=os.environ.get("LLM_MODEL", "deepseek-v4-flash"),
-        base_url=os.environ.get("LLM_BASE_URL", "https://api.deepseek.com"),
-        api_key=os.environ["LLM_API_KEY"],
-        reasoning_effort="high",
-        extra_body={"thinking": {"type": "enabled"}},
-    )
-
-
 def synthesizer(state: State) -> dict:
     stage = "修订" if state.get("issues") else "初稿"
     print(f"\n{'='*50}")
     print(f"  Synthesizer ({stage}) 开始, {len(state.get('chapters', []))} 个章节")
     print(f"{'='*50}", flush=True)
 
-    llm = _make_llm()
+    llm = make_llm()
 
     chapters_text = _format_chapters(state)
     outline_text = _format_outline(state)

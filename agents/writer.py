@@ -1,12 +1,9 @@
 """Writer agent: writes one chapter based on assigned papers. Runs in parallel via Send."""
 
-import os
-from pathlib import Path
-
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from state import State
+from agents.shared import make_llm
+from agents.state import State
 
 WRITER_PROMPT = """\
 你是一个学术文献的章节撰写专家，强制使用中文输出所有内容。你将收到：
@@ -24,21 +21,8 @@ WRITER_PROMPT = """\
 
 输出该章的完整正文，不要输出其他内容。"""
 
-OUTPUT_DIR = Path(__file__).parent.parent / "output" / "chapters"
-
-
-def _make_llm():
-    return ChatOpenAI(
-        model=os.environ.get("LLM_MODEL", "deepseek-v4-flash"),
-        base_url=os.environ.get("LLM_BASE_URL", "https://api.deepseek.com"),
-        api_key=os.environ["LLM_API_KEY"],
-        reasoning_effort="high",
-        extra_body={"thinking": {"type": "enabled"}},
-    )
-
-
 def writer(state: State) -> dict:
-    llm = _make_llm()
+    llm = make_llm()
 
     section = state["outline"][state["current_section_index"]]
     section_title = section["title"]
@@ -86,10 +70,6 @@ def writer(state: State) -> dict:
         if chunk.content:
             chapter_content += chunk.content
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    filepath = OUTPUT_DIR / f"chapter_{chapter_num:02d}.md"
-    filepath.write_text(chapter_content, encoding="utf-8")
-
-    print(f"  [Writer {chapter_num}/{total}] {section_title} → {len(chapter_content)} 字 → {filepath}", flush=True)
+    print(f"  [Writer {chapter_num}/{total}] {section_title} → {len(chapter_content)} 字", flush=True)
 
     return {"chapters": [chapter_content]}

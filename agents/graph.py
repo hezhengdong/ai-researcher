@@ -8,7 +8,7 @@ from agents.outliner import outliner
 from agents.searcher import searcher
 from agents.synthesizer import synthesizer
 from agents.writer import writer
-from state import State
+from agents.state import State
 
 MAX_RETRIES = 3
 

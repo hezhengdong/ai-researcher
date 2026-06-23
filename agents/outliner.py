@@ -1,13 +1,12 @@
 """Outliner agent: reads papers' titles and first N chars of markdown to produce an outline."""
 
 import json
-import os
 import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from state import State
+from agents.shared import make_llm
+from agents.state import State
 
 OUTLINER_PROMPT = """\
 你是一个学术文献综述的大纲撰写专家。你将收到一批论文的标题和正文前 1500 字，需要为这些论文组织一个综述大纲。强制使用中文输出所有内容。
@@ -35,22 +34,12 @@ OUTLINER_PROMPT = """\
 只输出 JSON，不要其他内容。"""
 
 
-def _make_llm():
-    return ChatOpenAI(
-        model=os.environ.get("LLM_MODEL", "deepseek-v4-flash"),
-        base_url=os.environ.get("LLM_BASE_URL", "https://api.deepseek.com"),
-        api_key=os.environ["LLM_API_KEY"],
-        reasoning_effort="high",
-        extra_body={"thinking": {"type": "enabled"}},
-    )
-
-
 def outliner(state: State) -> dict:
     print(f"\n{'='*50}")
     print(f"  Outliner 开始，共 {len(state['papers'])} 篇论文")
     print(f"{'='*50}", flush=True)
 
-    llm = _make_llm()
+    llm = make_llm()
 
     paper_summaries = []
     for i, p in enumerate(state["papers"]):

@@ -31,15 +31,31 @@
     background: var(--bg);
     color: var(--text);
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
+
+  main {
+    flex: 1;
+    min-height: 0;
+    padding: 40px 48px;
+    max-width: 1000px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  main::-webkit-scrollbar { display: none; }
 
   /* ── Sidebar ── */
   nav {
     width: 220px;
     min-width: 220px;
+    min-height: 0;
     background: var(--card);
     border-right: 1px solid var(--border);
     padding: 28px 20px;
@@ -47,9 +63,6 @@
     flex-direction: column;
     gap: 16px;
     overflow-y: auto;
-    max-height: 100vh;
-    position: sticky;
-    top: 0;
   }
 
   nav h2 {
@@ -91,16 +104,6 @@
   }
 
   .no-history { color: var(--text-muted); font-size: 0.85rem; font-style: italic; }
-
-  /* ── Main ── */
-  main {
-    flex: 1;
-    padding: 40px 48px;
-    max-width: 1000px;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
 
   .hero h1 {
     font-family: 'Crimson Pro', serif;
@@ -748,6 +751,9 @@
           }
           agentCards[data.agent] = entry;
         }
+        requestAnimationFrame(() => {
+          document.querySelector('main').scrollTop = document.querySelector('main').scrollHeight;
+        });
         break;
       }
 

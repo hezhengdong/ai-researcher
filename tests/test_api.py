@@ -116,13 +116,13 @@ def test_db():
 @pytest.fixture
 def client(test_db):
     """Create a TestClient with mocked agent functions."""
-    with patch('graph.searcher', mock_searcher), \
-         patch('graph.outliner', mock_outliner), \
-         patch('graph.writer', mock_writer), \
-         patch('graph.synthesizer', mock_synthesizer), \
-         patch('graph.critic', mock_critic):
+    with patch('agents.graph.searcher', mock_searcher), \
+         patch('agents.graph.outliner', mock_outliner), \
+         patch('agents.graph.writer', mock_writer), \
+         patch('agents.graph.synthesizer', mock_synthesizer), \
+         patch('agents.graph.critic', mock_critic):
 
-        from graph import build_graph
+        from agents.graph import build_graph
         test_graph = build_graph()
 
         import api
@@ -241,8 +241,8 @@ def test_error_handling(client):
     def failing_searcher(state):
         raise RuntimeError("API rate limit exceeded")
 
-    with patch('graph.searcher', failing_searcher):
-        from graph import build_graph
+    with patch('agents.graph.searcher', failing_searcher):
+        from agents.graph import build_graph
         test_graph = build_graph()
         import api
         original = api.graph

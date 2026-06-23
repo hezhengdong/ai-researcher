@@ -1,19 +1,18 @@
 """Searcher agent: ReAct-style, uses tools to find papers, batch downloads PDFs after."""
 
 import json
-import os
 import re
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
-from langchain_openai import ChatOpenAI
 
-from state import State
+from agents.shared import make_llm
+from agents.state import State
 from tools import batch_download_and_parse, tavily_extract, tavily_search
 
 SEARCHER_PROMPT = """\
 你是一个学术文献搜索专家，任务是找到某个 CS 领域的经典必读论文。强制使用中文输出所有内容。
 
-注意：最多找 3 篇论文即可。
+注意：最多找 3 篇论文即可，测试用。
 
 你有两个工具：
 - tavily_search: 搜索网页，返回结果摘要和 URL
@@ -45,23 +44,12 @@ SEARCHER_PROMPT = """\
 - 只输出 JSON 数组，不要其他内容"""
 
 
-def _make_llm():
-    return ChatOpenAI(
-        model=os.environ.get("LLM_MODEL", "deepseek-v4-flash"),
-        base_url=os.environ.get("LLM_BASE_URL", "https://api.deepseek.com"),
-        api_key=os.environ["LLM_API_KEY"],
-        streaming=True,
-        reasoning_effort="high",
-        extra_body={"thinking": {"type": "enabled"}},
-    )
-
-
 def _log(msg: str):
     print(f"  {msg}", flush=True)
 
 
 def searcher(state: State) -> dict:
-    llm = _make_llm()
+    llm = make_llm(streaming=True)
     # LLM 只负责搜索和提取，下载解析由代码批量完成
     tools = [tavily_search, tavily_extract]
     llm_with_tools = llm.bind_tools(tools)

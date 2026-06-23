@@ -1,11 +1,9 @@
 """Critic agent: reviews the draft and produces a list of issues."""
 
-import os
-
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 
-from state import State
+from agents.shared import make_llm
+from agents.state import State
 
 CRITIC_PROMPT = """\
 你是一个学术文献综述的审稿人，强制使用中文输出所有内容。你将收到一篇完整的综述草稿以及所有被引用论文的列表（每篇带 [N] 编号）。
@@ -29,22 +27,12 @@ CRITIC_PROMPT = """\
 注意：只指出问题，不要给出修改建议。"""
 
 
-def _make_llm():
-    return ChatOpenAI(
-        model=os.environ.get("LLM_MODEL", "deepseek-v4-flash"),
-        base_url=os.environ.get("LLM_BASE_URL", "https://api.deepseek.com"),
-        api_key=os.environ["LLM_API_KEY"],
-        reasoning_effort="high",
-        extra_body={"thinking": {"type": "enabled"}},
-    )
-
-
 def critic(state: State) -> dict:
     print(f"\n{'='*50}")
     print(f"  Critic 开始审稿 (第 {state.get('retry_count', 0)+1} 轮)")
     print(f"{'='*50}", flush=True)
 
-    llm = _make_llm()
+    llm = make_llm()
 
     papers_summary = "\n".join(
         f"- [{i+1}] {p['title']}" for i, p in enumerate(state["papers"])

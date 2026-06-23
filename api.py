@@ -12,9 +12,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from db import create_survey, get_survey, list_surveys, update_survey_done
-from graph import graph
+from agents.graph import graph
 from latex import generate_pdf
-from state import State
+from agents.state import State
 from tools import set_progress_reporter
 
 load_dotenv()
