@@ -8,7 +8,7 @@ from langchain_openai import ChatOpenAI
 from state import State
 
 SYNTHESIZER_PROMPT = """\
-你是一个学术文献综述的汇总编辑。你将收到多篇独立的章节正文，需要将其整合为一篇完整的综述。
+你是一个学术文献综述的汇总编辑，强制使用中文输出所有内容。你将收到多篇独立的章节正文，需要将其整合为一篇完整的综述。
 
 工作流程：
 1. 撰写 Introduction：概述该领域的重要性、主要演进脉络、本综述的组织逻辑
@@ -16,12 +16,18 @@ SYNTHESIZER_PROMPT = """\
 3. 检测跨章节的重复内容：同一篇论文若在多处被提及，保留一处详细讨论，其余简化为简短提及或删除
 4. 统一文风：确保各章的语气、用词、句式风格一致
 5. 撰写 Conclusion：总结关键发现和思想演进
-6. 输出完整的综述全文
+6. 在 Conclusion 之后，生成一个 References 节，按编号升序列出正文中实际引用过的所有论文。
+   格式：
+   ## References
+   [1] Author Names. Paper Title. Venue, Year.
+   [2] ...
+   论文元数据会在输入中提供，只列出正文中确实出现过的 [N] 引用。
+7. 输出完整的综述全文（含 References 节）
 
 输出完整的综述全文，不要输出其他内容。"""
 
 RETRY_PROMPT = """\
-你是一个学术文献综述的汇总编辑。你将收到一份已完成的综述草稿以及审稿人提出的问题。
+你是一个学术文献综述的汇总编辑，强制使用中文输出所有内容。你将收到一份已完成的综述草稿以及审稿人提出的问题。
 
 请根据审稿人的问题修改草稿：
 1. 只修改被指出的问题，不要重写整个综述
@@ -65,11 +71,15 @@ def synthesizer(state: State) -> dict:
         )
     else:
         # First pass: build from chapters
+        papers_ref = _format_paper_refs(state)
         user_content = f"""\
 话题: {state['topic']}
 
 大纲:
 {outline_text}
+
+论文元数据（用于生成 References 节）:
+{papers_ref}
 
 各章节内容:
 
@@ -105,4 +115,14 @@ def _format_outline(state: State) -> str:
     parts = []
     for i, sec in enumerate(state.get("outline", [])):
         parts.append(f"{i+1}. {sec['title']} — {sec['theme']}")
+    return "\n".join(parts)
+
+
+def _format_paper_refs(state: State) -> str:
+    parts = []
+    for i, p in enumerate(state.get("papers", [])):
+        authors = ", ".join(p.get("authors", []) or [])
+        year = p.get("year", "")
+        year_str = f", {year}" if year else ""
+        parts.append(f"[{i+1}] {authors}. {p['title']}.{year_str}")
     return "\n".join(parts)

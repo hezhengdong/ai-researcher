@@ -8,21 +8,22 @@ from langchain_openai import ChatOpenAI
 from state import State
 
 CRITIC_PROMPT = """\
-你是一个学术文献综述的审稿人。你将收到一篇完整的综述草稿以及所有被引用论文的列表。
+你是一个学术文献综述的审稿人，强制使用中文输出所有内容。你将收到一篇完整的综述草稿以及所有被引用论文的列表（每篇带 [N] 编号）。
 
 审查项目：
 
 硬检查：
-- 综述中所有引用标记 [paper_id] 是否都在论文列表中
+- 综述中所有 [N] 引用标记的 N 是否在 1 到论文总数的范围内
 - 论文列表中是否有完全未被引用的论文（遗漏）
 
 软检查：
 - 各章间逻辑是否连贯，是否存在前后矛盾
 - 是否在真正做跨论文的比较分析，而非简单罗列
 - Introduction 是否准确概括了各章的核心内容
+- References 节是否完整列出了正文中实际引用过的所有论文
 
 输出格式：
-- 如果发现问题，每个问题一行，格式为 "- [类别] 问题描述（例如：「- [硬检查] 引用 [xyz] 不在论文列表中」）
+- 如果发现问题，每个问题一行，格式为 "- [类别] 问题描述（例如：「- [硬检查] 引用 [5] 超出论文列表范围」）
 - 如果没有问题，输出 "OK"
 
 注意：只指出问题，不要给出修改建议。"""
@@ -45,9 +46,8 @@ def critic(state: State) -> dict:
 
     llm = _make_llm()
 
-    paper_ids = [p["id"] for p in state["papers"]]
     papers_summary = "\n".join(
-        f"- [{p['id']}] {p['title']}" for p in state["papers"]
+        f"- [{i+1}] {p['title']}" for i, p in enumerate(state["papers"])
     )
 
     user_content = f"""\

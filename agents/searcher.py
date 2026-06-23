@@ -11,9 +11,9 @@ from state import State
 from tools import batch_download_and_parse, tavily_extract, tavily_search
 
 SEARCHER_PROMPT = """\
-你是一个学术文献搜索专家，任务是找到某个 CS 领域的经典必读论文。
+你是一个学术文献搜索专家，任务是找到某个 CS 领域的经典必读论文。强制使用中文输出所有内容。
 
-注意：最多找 10 篇论文即可。
+注意：最多找 3 篇论文即可。
 
 你有两个工具：
 - tavily_search: 搜索网页，返回结果摘要和 URL
@@ -50,6 +50,7 @@ def _make_llm():
         model="deepseek-v4-flash",
         base_url="https://api.deepseek.com",
         api_key=os.environ["DEEPSEEK_API_KEY"],
+        streaming=True,
         reasoning_effort="high",
         extra_body={"thinking": {"type": "enabled"}},
     )

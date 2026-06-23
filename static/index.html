@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Literature Survey Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;1,14..32,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FAFAF9;
+    --card: #FFFFFF;
+    --text: #1A1A1A;
+    --text-muted: #6B6560;
+    --accent: #B5834A;
+    --accent-light: #D4A574;
+    --border: #E8E4DF;
+    --active-bg: #F5F0EB;
+    --active-border: #C4956A;
+    --error: #C44B4B;
+    --success: #5B8C5A;
+    --thinking: #F7F4F0;
+    --tool-bg: #F9F8F6;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Sidebar ── */
+  nav {
+    width: 220px;
+    min-width: 220px;
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    padding: 28px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    max-height: 100vh;
+    position: sticky;
+    top: 0;
+  }
+
+  nav h2 {
+    font-family: 'Crimson Pro', serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .history-list { display: flex; flex-direction: column; gap: 2px; }
+
+  .history-item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .history-item:hover { background: var(--active-bg); }
+  .history-item.active { background: var(--active-bg); border-color: var(--border); }
+
+  .history-item .topic {
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .history-item .meta {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  .no-history { color: var(--text-muted); font-size: 0.85rem; font-style: italic; }
+
+  /* ── Main ── */
+  main {
+    flex: 1;
+    padding: 40px 48px;
+    max-width: 1000px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .hero h1 {
+    font-family: 'Crimson Pro', serif;
+    font-size: 2.5rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  .hero p { color: var(--text-muted); font-size: 1rem; margin-top: 8px; }
+
+  /* ── Input ── */
+  .input-row { display: flex; gap: 10px; }
+
+  .input-row input {
+    flex: 1;
+    padding: 12px 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    background: var(--card);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .input-row input:focus { border-color: var(--accent-light); }
+
+  .input-row button {
+    padding: 12px 28px;
+    background: var(--text);
+    color: var(--card);
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  .input-row button:hover { opacity: 0.85; }
+  .input-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Pipeline ── */
+  .pipeline { display: none; flex-direction: column; gap: 14px; }
+
+  /* 串行 agent 卡片：全宽 */
+  .serial-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+
+  .serial-card.active { border-color: var(--active-border); box-shadow: 0 0 0 3px rgba(180,131,74,0.1); }
+  .serial-card.done { border-color: var(--border); opacity: 0.85; }
+
+  /* Writer 并行卡片 */
+  .writers-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+
+  .writer-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .writer-card.active { border-color: var(--active-border); box-shadow: 0 0 0 3px rgba(180,131,74,0.1); }
+  .writer-card.done { border-color: var(--border); opacity: 0.85; }
+
+  /* Agent label */
+  .agent-label {
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .active .agent-label { color: var(--accent); }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .active .status-dot { background: var(--accent-light); animation: pulse 1.2s ease-in-out infinite; }
+  .done .status-dot { background: var(--success); }
+
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  /* 输入摘要：agent 被喂了什么 */
+  .input-summary {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    background: var(--tool-bg);
+    border-radius: 6px;
+    line-height: 1.4;
+    display: none;
+  }
+
+  .input-summary.visible { display: block; }
+  .input-summary strong { color: var(--text); }
+
+  /* 工具调用日志 */
+  .tool-log {
+    font-size: 0.75rem;
+    margin-bottom: 8px;
+    display: none;
+  }
+
+  .tool-log.visible { display: block; }
+
+  .tool-entry {
+    background: var(--tool-bg);
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+  }
+
+  .tool-entry .tool-name {
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .tool-entry .tool-detail {
+    color: var(--text-muted);
+    margin-top: 2px;
+    font-size: 0.72rem;
+    word-break: break-all;
+    white-space: pre-line;
+  }
+
+  /* PDF 进度 */
+  .pdf-progress {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 6px 10px;
+    background: var(--tool-bg);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    display: none;
+  }
+
+  .pdf-progress.visible { display: block; }
+
+  .pdf-progress .bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+
+  .pdf-progress .fill {
+    height: 100%;
+    background: var(--accent-light);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+
+  /* 思考过程 */
+  .thinking-box {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    background: var(--thinking);
+    border-left: 2px solid var(--border);
+    padding: 8px 12px;
+    margin: 6px 0;
+    border-radius: 0 6px 6px 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-style: italic;
+    max-height: 120px;
+    overflow-y: auto;
+    display: none;
+  }
+
+  .thinking-box.visible { display: block; }
+  .thinking-box::before { content: "Thinking…"; display: block; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; font-style: normal; color: var(--accent); }
+
+
+	  /* 活动流：Searcher 的思考+工具调用按时间顺序混合展示 */
+	  .activity-stream {
+	    font-size: 0.78rem;
+	    margin: 6px 0;
+	    display: none;
+	  }
+	  .activity-stream.visible { display: block; }
+
+	  .activity-thinking {
+	    color: var(--text-muted);
+	    background: var(--thinking);
+	    border-left: 2px solid var(--border);
+	    padding: 6px 10px;
+	    margin: 3px 0;
+	    border-radius: 0 6px 6px 0;
+	    white-space: pre-wrap;
+	    word-break: break-word;
+	    font-style: italic;
+	  }
+
+	  .activity-tool {
+	    background: var(--tool-bg);
+	    border-radius: 6px;
+	    padding: 5px 9px;
+	    margin: 3px 0;
+	    font-size: 0.72rem;
+	  }
+	  .activity-tool .tool-name {
+	    font-weight: 600;
+	    color: var(--accent);
+	    font-size: 0.68rem;
+	    text-transform: uppercase;
+	    letter-spacing: 0.04em;
+	  }
+	  .activity-tool .tool-detail {
+	    color: var(--text-muted);
+	    margin-top: 2px;
+	    white-space: pre-line;
+	    word-break: break-all;
+	  }
+  /* 正文内容 */
+  .agent-content {
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: var(--accent);
+    vertical-align: text-bottom;
+    animation: blink 0.8s step-end infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── Result ── */
+  .result {
+    display: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 36px 40px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 1.05rem;
+    line-height: 1.75;
+  }
+
+  .result h1, .result h2, .result h3 {
+    font-family: 'Crimson Pro', serif;
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.4em;
+  }
+
+  .result h1 { font-size: 1.8rem; }
+  .result h2 { font-size: 1.4rem; }
+  .result h3 { font-size: 1.15rem; }
+  .result p { margin-bottom: 0.8em; }
+  .result code { font-family: 'Inter', monospace; font-size: 0.9em; }
+  .result blockquote {
+    border-left: 2px solid var(--accent-light);
+    padding-left: 16px;
+    color: var(--text-muted);
+  }
+
+  /* ── Issues ── */
+  .issues { margin-top: 8px; font-size: 0.85rem; }
+  .issue { color: var(--error); padding: 4px 0; }
+  .no-issues { color: var(--success); font-weight: 500; }
+
+  /* ── Download PDF button ── */
+  .dl-pdf-btn {
+    display: inline-block;
+    padding: 8px 20px;
+    background: var(--text);
+    color: var(--card);
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    margin-bottom: 20px;
+    transition: opacity 0.2s;
+  }
+  .dl-pdf-btn:hover { opacity: 0.85; }
+
+  /* ── Error ── */
+  .error-toast {
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    color: var(--error);
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <h2>History</h2>
+  <div class="history-list" id="historyList">
+    <span class="no-history">No surveys yet.</span>
+  </div>
+</nav>
+
+<main>
+  <div class="hero">
+    <h1>Literature Survey</h1>
+    <p>Multi-agent pipeline for introductory CS literature reviews.</p>
+  </div>
+
+  <form class="input-row" id="form">
+    <input type="text" id="topicInput" placeholder="e.g. distributed systems, RAG, program synthesis&hellip;" autofocus>
+    <button type="submit" id="submitBtn">Generate</button>
+  </form>
+
+  <div id="errorBox"></div>
+
+  <div class="pipeline" id="pipeline"></div>
+
+  <div class="result" id="result"></div>
+</main>
+
+<script>
+  let currentStream = null;
+  let activeSurveyId = null;
+
+  const agentCards = {};     // {agent: {card, content, thinking, toolLog, inputSummary, pdfProgress}}
+  const writerCards = {};    // {writer_index: {card, content, thinking, inputSummary}}
+  let writerOutline = [];
+
+  const pipelineEl = document.getElementById('pipeline');
+  const resultEl = document.getElementById('result');
+  const errorBox = document.getElementById('errorBox');
+  const form = document.getElementById('form');
+  const topicInput = document.getElementById('topicInput');
+  const submitBtn = document.getElementById('submitBtn');
+  let writersRowEl = null;  // grid 容器，writer 卡片放这里面
+
+  // ── Card creation ──
+
+  function ensureWritersRow() {
+    if (!writersRowEl || !writersRowEl.isConnected) {
+      writersRowEl = document.createElement('div');
+      writersRowEl.className = 'writers-row';
+      pipelineEl.appendChild(writersRowEl);
+    }
+    return writersRowEl;
+  }
+
+  function makeCard(label, isWriter) {
+    const card = document.createElement('div');
+    card.className = isWriter ? 'writer-card' : 'serial-card';
+    card.innerHTML = `
+      <div class="agent-label"><span class="status-dot"></span>${label}</div>
+      <div class="input-summary"></div>
+      <div class="tool-log"></div>
+      <div class="activity-stream"></div>
+      <div class="pdf-progress">
+        <div class="pdf-phase">
+          <span class="pdf-label dl-label">PDF 下载: 0/0</span>
+          <div class="bar"><div class="fill dl-fill" style="width:0%"></div></div>
+        </div>
+        <div class="pdf-phase">
+          <span class="pdf-label ps-label">PDF 解析: 0/0</span>
+          <div class="bar"><div class="fill ps-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="thinking-box"></div>
+      <div class="agent-content"></div>
+    `;
+    const parent = isWriter ? ensureWritersRow() : pipelineEl;
+    parent.appendChild(card);
+    return {
+      card,
+      content: card.querySelector('.agent-content'),
+      thinking: card.querySelector('.thinking-box'),
+      toolLog: card.querySelector('.tool-log'),
+      inputSummary: card.querySelector('.input-summary'),
+      pdfProgress: card.querySelector('.pdf-progress'),
+      dlLabel: card.querySelector('.dl-label'),
+      dlFill: card.querySelector('.dl-fill'),
+      psLabel: card.querySelector('.ps-label'),
+      psFill: card.querySelector('.ps-fill'),
+      activityStream: card.querySelector('.activity-stream'),
+    };
+  }
+
+  function setCardActive(entry) {
+    entry.card.classList.add('active');
+    entry.card.classList.remove('done');
+  }
+
+  function setCardDone(entry) {
+    entry.card.classList.remove('active');
+    entry.card.classList.add('done');
+  }
+
+  function appendToken(contentEl, text) {
+    const existing = contentEl.querySelector('.cursor');
+    if (existing) existing.remove();
+    contentEl.textContent += text;
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    contentEl.appendChild(cursor);
+    contentEl.parentElement.scrollTop = contentEl.parentElement.scrollHeight;
+  }
+
+  function removeCursor(contentEl) {
+    const cursor = contentEl.querySelector('.cursor');
+    if (cursor) cursor.remove();
+  }
+
+  function appendThinking(thinkingEl, text) {
+    thinkingEl.classList.add('visible');
+    thinkingEl.textContent += text;
+    thinkingEl.parentElement.scrollTop = thinkingEl.parentElement.scrollHeight;
+  }
+
+  function showInputSummary(summaryEl, html) {
+    summaryEl.innerHTML = html;
+    summaryEl.classList.add('visible');
+  }
+
+  function addToolEntry(toolLog, name, detail) {
+    toolLog.classList.add('visible');
+    const div = document.createElement('div');
+    div.className = 'tool-entry';
+    div.innerHTML = `<div class="tool-name">${escapeHtml(name)}</div><div class="tool-detail">${escapeHtml(detail)}</div>`;
+    toolLog.appendChild(div);
+    toolLog.parentElement.scrollTop = toolLog.parentElement.scrollHeight;
+  }
+
+  function appendActivityThinking(streamEl, text) {
+    streamEl.classList.add('visible');
+    const last = streamEl.lastElementChild;
+    if (last && last.classList.contains('activity-thinking')) {
+      last.textContent += text;
+    } else {
+      const div = document.createElement('div');
+      div.className = 'activity-thinking';
+      div.textContent = text;
+      streamEl.appendChild(div);
+    }
+    streamEl.parentElement.scrollTop = streamEl.parentElement.scrollHeight;
+  }
+
+  function addActivityTool(streamEl, name, detail) {
+    streamEl.classList.add('visible');
+    const div = document.createElement('div');
+    div.className = 'activity-tool';
+    div.innerHTML = `<div class="tool-name">${escapeHtml(name)}</div><div class="tool-detail">${escapeHtml(detail)}</div>`;
+    streamEl.appendChild(div);
+    streamEl.parentElement.scrollTop = streamEl.parentElement.scrollHeight;
+  }
+
+
+  function resetUI() {
+    if (currentStream) { currentStream.close(); currentStream = null; }
+    for (const key in agentCards) {
+      agentCards[key].card.remove();
+      delete agentCards[key];
+    }
+    for (const key in writerCards) {
+      writerCards[key].card.remove();
+      delete writerCards[key];
+    }
+    writerOutline = [];
+    writersRowEl = null;
+    pipelineEl.innerHTML = '';
+    resultEl.innerHTML = '';
+    resultEl.style.display = 'none';
+    errorBox.innerHTML = '';
+    pipelineEl.style.display = 'none';
+  }
+
+  // ── SSE handler ──
+
+  function handleSSEEvent(evt) {
+    const data = JSON.parse(evt.data);
+
+    switch (data.type) {
+      case 'agent_start': {
+        pipelineEl.style.display = 'flex';
+
+        if (data.agent === 'writer') {
+          const idx = data.writer_index;
+          const sectionTitle = writerOutline[idx]?.title || `Writer ${idx + 1}`;
+          const entry = makeCard(sectionTitle, true);
+          setCardActive(entry);
+          if (data.assigned_papers && data.assigned_papers.length) {
+            showInputSummary(entry.inputSummary,
+              `<strong>阅读论文:</strong> ${data.assigned_papers.map(t => escapeHtml(t)).join('、')}`
+            );
+          }
+          writerCards[idx] = entry;
+        } else {
+          const labelMap = { searcher: 'Searcher', outliner: 'Outliner', synthesizer: 'Synthesizer', critic: 'Critic' };
+          const label = labelMap[data.agent] || data.agent;
+          const entry = makeCard(label, false);
+          setCardActive(entry);
+
+          if (data.agent === 'outliner' && data.paper_titles) {
+            showInputSummary(entry.inputSummary,
+              `<strong>收到 ${data.paper_count} 篇论文摘要:</strong> ${data.paper_titles.map(t => escapeHtml(t)).join('、')}`
+            );
+          }
+          if (data.agent === 'synthesizer') {
+            const titles = data.chapter_titles || [];
+            const retry = data.is_retry ? ' (修订轮)' : '';
+            showInputSummary(entry.inputSummary,
+              `<strong>收到 ${data.chapter_count} 章${retry}:</strong> ${titles.map(t => escapeHtml(t)).join('、')}`
+            );
+          }
+          agentCards[data.agent] = entry;
+        }
+        break;
+      }
+
+      case 'thinking': {
+        if (data.agent === 'searcher') {
+          const entry = agentCards['searcher'];
+          if (entry && data.content) {
+            appendActivityThinking(entry.activityStream, data.content);
+          }
+        } else if (data.agent === 'writer') {
+          const entry = writerCards[data.writer_index];
+          if (entry && data.content) {
+            appendThinking(entry.thinking, data.content);
+          }
+        } else {
+          const entry = agentCards[data.agent];
+          if (entry && data.content) {
+            appendThinking(entry.thinking, data.content);
+          }
+        }
+        break;
+      }
+
+      case 'token': {
+        let entry;
+        if (data.agent === 'searcher') {
+          break;
+        } else if (data.agent === 'writer') {
+          entry = writerCards[data.writer_index];
+        } else {
+          entry = agentCards[data.agent];
+        }
+        if (entry && data.content) {
+          appendToken(entry.content, data.content);
+        }
+        break;
+      }
+
+      // 工具调用 & PDF 进度（来自 tools.py 的 progress reporter）
+      case 'tool_start': {
+        const entry = agentCards['searcher'];
+        if (entry) {
+          const detail = data.tool === 'tavily_search' ? `查询: ${data.query || ''}` : `URL: ${data.url || ''}`;
+          if (entry.activityStream) {
+            addActivityTool(entry.activityStream, data.tool, detail);
+          }
+        }
+        break;
+      }
+
+      case 'tool_result': {
+        const entry = agentCards['searcher'];
+        if (entry) {
+          const items = data.items || [];
+          const detail = data.summary + (items.length ? '\n' + items.map(i => '→ ' + i).join('\n') : '');
+          if (entry.activityStream) {
+            addActivityTool(entry.activityStream, data.tool + ' 结果', detail);
+          }
+        }
+        break;
+      }
+
+      case 'pdf_start': {
+        const entry = agentCards['searcher'];
+        if (entry && data.total > 0) {
+          entry.pdfProgress.classList.add('visible');
+          entry.dlLabel.textContent = `PDF 下载: 0/${data.total}`;
+          entry.psLabel.textContent = `PDF 解析: 0/${data.total}`;
+        }
+        break;
+      }
+
+      case 'pdf_download_progress': {
+        const entry = agentCards['searcher'];
+        if (entry) {
+          entry.dlLabel.textContent = `PDF 下载: ${data.done}/${data.total}`;
+          entry.dlFill.style.width = (data.done / data.total * 100) + '%';
+        }
+        break;
+      }
+
+      case 'pdf_parse_progress': {
+        const entry = agentCards['searcher'];
+        if (entry) {
+          entry.psLabel.textContent = `PDF 解析: ${data.done}/${data.total}`;
+          entry.psFill.style.width = (data.done / data.total * 100) + '%';
+        }
+        break;
+      }
+
+      case 'pdf_done': {
+        const entry = agentCards['searcher'];
+        if (entry && data.results) {
+          const successes = data.results.filter(r => r.success).length;
+          entry.dlLabel.textContent = `PDF 下载: ${data.results.length}/${data.results.length}`;
+          entry.psLabel.textContent = `PDF 解析: ${successes}/${data.results.length} 篇成功`;
+          entry.dlFill.style.width = '100%';
+          entry.psFill.style.width = '100%';
+        }
+        break;
+      }
+
+      case 'outline': {
+        writerOutline = data.sections || [];
+        break;
+      }
+
+      case 'agent_done': {
+        if (data.agent === 'writer') {
+          const entry = writerCards[data.writer_index];
+          if (entry) { removeCursor(entry.content); setCardDone(entry); }
+        } else if (data.agent === 'searcher') {
+          const entry = agentCards['searcher'];
+          if (entry) {
+            const papers = data.papers || [];
+            entry.content.textContent = papers.map((p, i) =>
+              `${i + 1}. ${p.title}  [${p.source_type}]  ${p.chars} 字符`
+            ).join('\n');
+            removeCursor(entry.content);
+            setCardDone(entry);
+          }
+        } else {
+          const entry = agentCards[data.agent];
+          if (entry) { removeCursor(entry.content); setCardDone(entry); }
+        }
+
+        if (data.agent === 'critic' && data.issues !== undefined) {
+          const entry = agentCards['critic'];
+          if (entry) {
+            const div = document.createElement('div');
+            div.className = 'issues';
+            if (data.issues.length === 0) {
+              div.innerHTML = '<span class="no-issues">Passed &mdash; no issues found.</span>';
+            } else {
+              data.issues.forEach(i => {
+                const d = document.createElement('div');
+                d.className = 'issue';
+                d.textContent = '- ' + i;
+                div.appendChild(d);
+              });
+            }
+            entry.card.appendChild(div);
+          }
+        }
+        break;
+      }
+
+      case 'done': {
+        activeSurveyId = data.survey_id;
+        loadHistory();
+        fetch(`/api/surveys/${data.survey_id}`)
+          .then(r => r.json())
+          .then(survey => {
+            if (survey.draft) {
+              resultEl.innerHTML = renderMarkdown(survey.draft);
+              if (data.has_pdf) {
+                const dlBtn = document.createElement('a');
+                dlBtn.href = `/api/surveys/${data.survey_id}/pdf`;
+                dlBtn.className = 'dl-pdf-btn';
+                dlBtn.textContent = 'Download PDF';
+                resultEl.prepend(dlBtn);
+              }
+              resultEl.style.display = 'block';
+              resultEl.scrollIntoView({ behavior: 'smooth' });
+            }
+          });
+        break;
+      }
+
+      case 'error': {
+        errorBox.innerHTML = `<div class="error-toast">${escapeHtml(data.message)}</div>`;
+        break;
+      }
+    }
+  }
+
+  // ── Markdown renderer ──
+  function renderMarkdown(md) {
+    let html = md
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/^---$/gm, '<hr>')
+      .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+      .split(/\n\n+/)
+      .map(block => {
+        block = block.trim();
+        if (!block) return '';
+        if (block.startsWith('<h') || block.startsWith('<blockquote') || block.startsWith('<hr')) return block;
+        return '<p>' + block.replace(/\n/g, '<br>') + '</p>';
+      })
+      .join('\n');
+    return html;
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  // ── History ──
+  async function loadHistory() {
+    try {
+      const resp = await fetch('/api/surveys');
+      const surveys = await resp.json();
+      const list = document.getElementById('historyList');
+      if (!surveys.length) {
+        list.innerHTML = '<span class="no-history">No surveys yet.</span>';
+        return;
+      }
+      list.innerHTML = surveys.map(s => `
+        <div class="history-item${s.id === activeSurveyId ? ' active' : ''}" data-id="${s.id}">
+          <div class="topic">${escapeHtml(s.topic)}</div>
+          <div class="meta">${new Date(s.created_at).toLocaleDateString('zh-CN')}</div>
+        </div>
+      `).join('');
+      list.querySelectorAll('.history-item').forEach(item => {
+        item.addEventListener('click', async () => {
+          const id = item.dataset.id;
+          activeSurveyId = parseInt(id);
+          list.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
+          item.classList.add('active');
+          const resp = await fetch(`/api/surveys/${id}`);
+          const survey = await resp.json();
+          if (survey.draft) {
+            resultEl.innerHTML = renderMarkdown(survey.draft);
+            const dlBtn = document.createElement('a');
+            dlBtn.href = `/api/surveys/${id}/pdf`;
+            dlBtn.className = 'dl-pdf-btn';
+            dlBtn.textContent = 'Download PDF';
+            resultEl.prepend(dlBtn);
+            resultEl.style.display = 'block';
+            resultEl.scrollIntoView({ behavior: 'smooth' });
+          }
+        });
+      });
+    } catch (e) {}
+  }
+
+  // ── Form submit ──
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const topic = topicInput.value.trim();
+    if (!topic) return;
+
+    resetUI();
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Running...';
+
+    const url = `/api/surveys/stream?topic=${encodeURIComponent(topic)}`;
+    currentStream = new EventSource(url);
+
+    currentStream.onmessage = (evt) => handleSSEEvent(evt);
+
+    currentStream.onerror = () => {
+      currentStream.close();
+      currentStream = null;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Generate';
+      if (!activeSurveyId) {
+        errorBox.innerHTML = '<div class="error-toast">Connection lost. Please try again.</div>';
+      }
+    };
+
+    const checkDone = setInterval(() => {
+      if (!currentStream || currentStream.readyState === EventSource.CLOSED) {
+        clearInterval(checkDone);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Generate';
+      }
+    }, 200);
+  });
+
+  loadHistory();
+  topicInput.focus();
+</script>
+</body>
+</html>

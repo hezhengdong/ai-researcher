@@ -9,14 +9,14 @@ from langchain_openai import ChatOpenAI
 from state import State
 
 WRITER_PROMPT = """\
-你是一个学术文献的章节撰写专家。你将收到：
+你是一个学术文献的章节撰写专家，强制使用中文输出所有内容。你将收到：
 - 一个章节标题和主题描述
-- 该章关联的论文的标题和 Markdown 正文
+- 该章关联的论文的标题和 Markdown 正文（每篇论文带有 [N] 编号）
 
 撰写要求：
 1. 按演进逻辑组织内容，而非逐篇罗列。格式应当类似：
    "A 提出了 X 方法，但受限于 Y。B 通过 Z 改进了这一问题。C 则走了不同路线，采用 W 方案。"
-2. 引用论文时使用 [paper_id] 标注
+2. 引用论文时使用每篇论文标题前的 [N] 编号标注，例如 [1]、[2]
 3. 控制篇幅在 800-1500 字
 4. 不要写子标题，以连贯散文形式输出
 5. 在开头用一句话承接本章在领域中的位置
@@ -48,17 +48,21 @@ def writer(state: State) -> dict:
     chapter_num = state["current_section_index"] + 1
     total = len(state["outline"])
 
+    # 构建 paper_id → 全局编号 [1], [2], ...
+    paper_index = {p["id"]: i + 1 for i, p in enumerate(state["papers"])}
+
     # 收集分配的论文
     paper_map = {p["id"]: p for p in state["papers"]}
     assigned_papers = [paper_map[pid] for pid in paper_ids if pid in paper_map]
 
     print(f"  [Writer {chapter_num}/{total}] {section_title} ({len(assigned_papers)} 篇)", flush=True)
 
-    # 构建论文上下文
+    # 构建论文上下文——标题前标注全局编号 [N]
     paper_texts = []
     for p in assigned_papers:
+        ref_num = paper_index.get(p["id"], "?")
         md = p.get("markdown", "") or ""
-        text = f"## [{p['id']}] {p['title']}\n\n{md[:6000]}"
+        text = f"## [{ref_num}] {p['title']}\n\n{md[:6000]}"
         paper_texts.append(text)
 
     papers_context = "\n\n---\n\n".join(paper_texts)
